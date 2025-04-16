@@ -5,43 +5,31 @@ import pandas as pd
 
 def SSA(series, level):
 
-	series = series - np.mean(series)  
-
-
-	windowLen = level 
-	seriesLen = len(series) 
-	K = seriesLen - windowLen + 1  
-	X = np.zeros((windowLen, K))    
+	windowLen = level
+	seriesLen = len(series)
+	K = seriesLen - windowLen + 1
+	X = np.zeros((windowLen, K))
 	for i in range(K):
-		X[:, i] = series[i:i + windowLen]   
-
+	    X[:, i] = series[i:i + windowLen]
 	
-	U, sigma, VT = np.linalg.svd(X, full_matrices=False)  
-
-	for i in range(VT.shape[0]):
-		VT[i, :] *= sigma[i]   
-	A = VT   
-
-
-	rec = np.zeros((windowLen, seriesLen))
-	for i in range(windowLen):
-		for j in range(windowLen - 1):
-			for m in range(j + 1):
-				rec[i, j] += A[i, j - m] * U[m, i]
-			rec[i, j] /= (j + 1)
-		for j in range(windowLen - 1, seriesLen - windowLen + 1):
-			for m in range(windowLen):
-				rec[i, j] += A[i, j - m] * U[m, i]
-			rec[i, j] /= windowLen
-		for j in range(seriesLen - windowLen + 1, seriesLen):
-			for m in range(j - seriesLen + windowLen, windowLen):
-				rec[i, j] += A[i, j - m] * U[m, i]
-			rec[i, j] /= (seriesLen - j)
-
+	U, sigma, VT = np.linalg.svd(X)
 	
-	res = pd.DataFrame(rec.T, columns=[f'rec_{i + 1}' for i in range(windowLen)])
-
-	res.to_csv('output.csv', index=False)
-
+	rec = np.zeros((level, seriesLen))
+	mask = np.full((seriesLen,), 1 / level)
+	for j in range(level-1):
+	    mask[j] *= level / (j+1)
+	    mask[-j - 1] *= level / (j+1)
+	
+	for i in range(level):
+	    A = np.matmul(U[:, i:i+1], VT[i:i+1, :])
+	    A *= sigma[i]
+	    x = np.zeros((seriesLen,))
+	    for j in range(level):
+	       temp_x = np.pad(A[j, :], (j, level-1-j), 'constant', constant_values=0.)
+	       x += temp_x
+	    x *= mask
+	    rec[i, :] = x
 	return rec
+
+
 
